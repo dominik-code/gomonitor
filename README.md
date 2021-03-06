@@ -34,11 +34,12 @@ Note: indentation is not relevant, but keys/values are case-sensitive (must be a
 ## Available monitoring types/protocols + examples
 ### Types:
 * #### simplePortMonitor:
-  ###### used for monitoring a specific
+  ###### used for monitoring a specific protocol and port
     ```
     {
       "displayNameTarget": "target-tcp-port-1",
       "intervalInMilliseconds": 1000, // interval in milliseconds for independed check calls
+      "timeoutInMilliseconds": 60000, // timeout in milliseconds if target needs longer to answer -> offline
       "type": "simplePortMonitor",
       "protocolName": "tcp", // one of the types "tcp, tcp4, tcp6, udp, udp4, udp6"
       "destination": "127.0.0.1", // either an IPv4 "1.2.3.4" or IPv6 "[abcd:efab::1]" 
@@ -48,10 +49,27 @@ Note: indentation is not relevant, but keys/values are case-sensitive (must be a
 
 * #### simpleWebMonitor:
   ###### used for monitoring a specific web page
-
-
-* http, https
-
+    ```
+    {
+      "displayNameTarget": "target-https-host-1",
+      "intervalInMilliseconds": 1000, // interval in milliseconds for independed check calls
+      "timeoutInMilliseconds": 60000, // timeout in milliseconds if target needs longer to answer -> offline
+      "type": "simpleWebMonitor",
+      "protocolName": "https", // one of the types "http, https"
+      "destination": "127.0.0.1", // either an IPv4 "1.2.3.4" or IPv6 "[abcd:efab::1]" or Hostname: "www.example.com"
+      "port": 443 //port number of the service you want to check against http -> 80, https -> 443
+    }
+    ```
+* #### other ideas (currently not implemented):
+  * Ping
+  * MTR (check if route changed from defined AS-Numbers)
+  * SSL Certificate duration till expire
+  * DNS check
+    * check specific record (A, AAAA, MX, etc.)
+    * check nameservers from zone
+    * check settings like TTL, DNSSEC
+  * reverse DNS check
+  
 ### Supported Backends
 
 * **currently only influxdb version 2 is supported as backend**
