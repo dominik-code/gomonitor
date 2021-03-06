@@ -8,6 +8,7 @@ import (
 	"github.com/influxdata/influxdb-client-go/api"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -35,6 +36,19 @@ type SimpleWebMonitorReport struct {
 	Source       string
 }
 
+type SimplePortMonitorReport struct {
+	StartTime    time.Time
+	IsOnline     int
+	ResponseTime int64
+	EndTime      time.Time
+	Name         string
+	Source       string
+}
+
+type LocalConfig struct {
+	DisplayNameSource string `json:"displayNameSource"`
+}
+
 type ConfigFile struct {
 	BackendConfig struct {
 		Protocol     string `json:"protocol"`
@@ -45,10 +59,8 @@ type ConfigFile struct {
 		Username     string `json:"username"`
 		Password     string `json:"password"`
 	} `json:"backendConfig"`
-	LocalConfig struct {
-		DisplayNameSource string `json:"displayNameSource"`
-	} `json:"localConfig"`
-	Monitors []Monitor `json:"monitors"`
+	LocalConfig LocalConfig `json:"localConfig"`
+	Monitors    []Monitor   `json:"monitors"`
 }
 
 const ALLOWED_TYPE_simplePortMonitor = "simplePortMonitor"
@@ -83,6 +95,13 @@ func main() {
 	// connect to backend
 	client := influxdb2.NewClient(backendProtocol+"://"+backendHost+":"+strconv.Itoa(backendPort), fmt.Sprintf("%s:%s", backendUsername, backendPassword))
 	async := client.WriteAPI(backendOrganisation, backendBucket)
+	errorsCh := async.Errors()
+	// Create go proc for reading and logging errors
+	go func() {
+		for err := range errorsCh {
+			log.Println("backend write error: %s\n", err.Error())
+		}
+	}()
 
 	log.Println("Setup backend done")
 	log.Println("Starting " + strconv.Itoa(len(configFile.Monitors)) + " monitors")
@@ -91,10 +110,10 @@ func main() {
 		switch configFile.Monitors[i].Type {
 		case ALLOWED_TYPE_simplePortMonitor:
 			wg.Add(1)
-			go simplePortMonitor(async, configFile.Monitors[i])
+			go simplePortMonitor(async, configFile.Monitors[i], configFile.LocalConfig)
 		case ALLOWED_TYPE_simpleWebMonitor:
 			wg.Add(1)
-			go simpleWebMonitor(async, configFile.Monitors[i])
+			go simpleWebMonitor(async, configFile.Monitors[i], configFile.LocalConfig)
 		default:
 			log.Println("Type not known or implemented: " + configFile.Monitors[i].Type)
 		}
@@ -107,29 +126,57 @@ func main() {
 }
 
 // begin simplePortMonitor
-func simplePortMonitor(async api.WriteAPI, monitor Monitor) {
+func simplePortMonitor(async api.WriteAPI, monitor Monitor, localConfig LocalConfig) {
 	tick := time.Tick(monitor.IntervalInMilliseconds * time.Millisecond)
 	for range tick {
-		//log.Println("Tick: " + check.destinationHost)
-		//go monitorHTTPHost(wg, async, check)
-
+		go simplePortMonitorCheck(async, monitor, localConfig)
 	}
+}
+
+func simplePortMonitorCheck(async api.WriteAPI, monitor Monitor, localConfig LocalConfig) {
+	var simplePortMonitorResult SimplePortMonitorReport
+	simplePortMonitorResult.StartTime = time.Now()
+	simplePortMonitorResult.Name = monitor.DisplayNameTarget
+	simplePortMonitorResult.Source = localConfig.DisplayNameSource
+	simplePortMonitorResult.IsOnline = 0
+
+	conn, err := net.Dial(monitor.ProtocolName, monitor.Destination+":"+strconv.Itoa(monitor.Port))
+	if err == nil {
+		simplePortMonitorResult.IsOnline = 1
+		conn.Close()
+	}
+
+	simplePortMonitorResult.ResponseTime = time.Since(simplePortMonitorResult.StartTime).Milliseconds()
+	simplePortMonitorResult.EndTime = time.Now()
+	simplePortMonitorReport(async, simplePortMonitorResult)
+}
+
+func simplePortMonitorReport(async api.WriteAPI, monitorResult SimplePortMonitorReport) {
+	p := influxdb2.NewPointWithMeasurement(ALLOWED_TYPE_simplePortMonitor).
+		AddTag("name", monitorResult.Name).
+		AddTag("source", monitorResult.Source).
+		AddField("responseTime", monitorResult.ResponseTime).
+		AddField("isOnline", monitorResult.IsOnline).
+		SetTime(monitorResult.StartTime)
+	async.WritePoint(p)
 }
 
 // end simplePortMonitor
 // begin simpleWebMonitor
 
-func simpleWebMonitor(async api.WriteAPI, monitor Monitor) {
+func simpleWebMonitor(async api.WriteAPI, monitor Monitor, localConfig LocalConfig) {
 	tick := time.Tick(monitor.IntervalInMilliseconds * time.Millisecond)
 	for range tick {
-		go simpleWebMonitorCheck(async, monitor)
+		go simpleWebMonitorCheck(async, monitor, localConfig)
 	}
 }
 
-func simpleWebMonitorCheck(async api.WriteAPI, monitor Monitor) {
+func simpleWebMonitorCheck(async api.WriteAPI, monitor Monitor, localConfig LocalConfig) {
 	var simpleWebMonitorResult SimpleWebMonitorReport
 	simpleWebMonitorResult.StartTime = time.Now()
 	simpleWebMonitorResult.Name = monitor.DisplayNameTarget
+	simpleWebMonitorResult.Source = localConfig.DisplayNameSource
+	simpleWebMonitorResult.StatusCode = 0
 	simpleWebMonitorResult.StatusCode = 0
 	simpleWebMonitorResult.IsOnline = 0
 
@@ -159,7 +206,6 @@ func simpleWebMonitorCheck(async api.WriteAPI, monitor Monitor) {
 }
 
 func simpleWebMonitorReport(async api.WriteAPI, monitorResult SimpleWebMonitorReport) {
-	log.Println("hztrt")
 	p := influxdb2.NewPointWithMeasurement(ALLOWED_TYPE_simpleWebMonitor).
 		AddTag("name", monitorResult.Name).
 		AddTag("source", monitorResult.Source).
