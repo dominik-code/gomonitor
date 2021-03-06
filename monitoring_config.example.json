@@ -1,11 +1,14 @@
 {
-  "backend": {
+  "backendConfig": {
+    "protocol": "https://",
     "host": "example.com",
     "port": 12345,
     "username": "testUsername",
-    "password": "testPassword"
+    "password": "testPassword",
+    "organisation": "",
+    "bucket": "testBucket"
   },
-  "config": {
+  "localConfig": {
     "displayNameSource": "test-host-name"
   },
   "monitors": [
