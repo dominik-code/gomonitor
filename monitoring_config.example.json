@@ -1,0 +1,29 @@
+{
+  "backend": {
+    "host": "example.com",
+    "port": 12345,
+    "username": "testUsername",
+    "password": "testPassword"
+  },
+  "config": {
+    "displayNameSource": "test-host-name"
+  },
+  "monitors": [
+    {
+      "displayNameTarget": "target-tcp-port-1",
+      "intervalInMilliseconds": 1000,
+      "type": "simplePortMonitor",
+      "protocolName": "tcp",
+      "destination": "127.0.0.1",
+      "port": 80
+    },
+    {
+      "displayNameTarget": "target-udp-port-1",
+      "intervalInMilliseconds": 1000,
+      "type": "simplePortMonitor",
+      "protocolName": "udp",
+      "destination": "127.0.0.1",
+      "port": 80
+    }
+  ]
+}
