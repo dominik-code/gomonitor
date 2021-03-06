@@ -6,7 +6,7 @@ A tool written in Go to monitor different services easily.
 About 4 months ago in november 2020 I noticed a performance degradation on my website,
 and some other services I often used. 
 
-My monitoring setup at this time was small and external hosted by some popular providers,
+My monitoring setup at this time was small and external, hosted by some popular providers,
 which had the problem of only monitoring specific things every 1/5 minutes. So finding the problem got pretty hard for me and led to a decision.
 
 I needed a simple binary tool for my debian based infrastructure,
@@ -20,7 +20,7 @@ What I saw from my first non versioned tool was pretty interesting (see example 
  * I saw interesting routing issues between my cluster based node structure.
  * I saw my own webpage flickering around between online and offline based on a load balancer issue.
 
-I quickly noted that this are things, which can not monitored when the check only runs every minute. 
+I quickly noted that these are things, which can't be monitored when the check only runs every minute. 
 I had issues where a site would appear offline (better returning a 500) when visited in the first 2 seconds of a minute, but afterwards was completely fine.
 
 
@@ -29,7 +29,7 @@ I had issues where a site would appear offline (better returning a 500) when vis
 The config file must be named "monitoring_config.json" and be readable in the same directory as the binary file.
 For a full example of a valid-like config file see ```monitoring_config.example.json```
 
-Note: indention is not relevant, but keys/values are case-sensitive (must be a valid UTF-8 json file)
+Note: indentation is not relevant, but keys/values are case-sensitive (must be a valid UTF-8 json file)
 
 ## Available monitoring types/protocols + examples
 ### Types:
@@ -46,7 +46,7 @@ Note: indention is not relevant, but keys/values are case-sensitive (must be a v
     }
     ```
 
-* #### simpleWebpageMonitor:
+* #### simpleWebMonitor:
   ###### used for monitoring a specific web page
 
 
@@ -88,3 +88,6 @@ Note: all images are taken out of my personal grafana dashboard
 
 * Website Cronjob issue every 5 minutes:
 ![Website-cronjob-problem](examplePictureCronjobEvery5Minutes.png)
+
+* Website Status code flickering around:
+  ![Website-cronjob-problem](examplePictureFlickeringStatusCodes.png)
