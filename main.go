@@ -45,6 +45,17 @@ type SimplePortMonitorReport struct {
 	Source       string
 }
 
+type SimpleSSLMonitorReport struct {
+	StartTime      time.Time
+	IsOnline       int
+	EndTime        time.Time
+	Name           string
+	Source         string
+	CommonName     string
+	TimeToExpire   int64
+	TimeSinceValid int64
+}
+
 type LocalConfig struct {
 	DisplayNameSource string `json:"displayNameSource"`
 }
@@ -65,6 +76,7 @@ type ConfigFile struct {
 
 const ALLOWED_TYPE_simplePortMonitor = "simplePortMonitor"
 const ALLOWED_TYPE_simpleWebMonitor = "simpleWebMonitor"
+const ALLOWED_TYPE_simpleSSLMonitor = "simpleSSLMonitor"
 
 func main() {
 	log.Println("Starting gomonitor....")
@@ -114,6 +126,9 @@ func main() {
 		case ALLOWED_TYPE_simpleWebMonitor:
 			wg.Add(1)
 			go simpleWebMonitor(async, configFile.Monitors[i], configFile.LocalConfig)
+		case ALLOWED_TYPE_simpleSSLMonitor:
+			wg.Add(1)
+			go simpleSSLMonitor(async, configFile.Monitors[i], configFile.LocalConfig)
 		default:
 			log.Println("Type not known or implemented: " + configFile.Monitors[i].Type)
 		}
@@ -217,3 +232,57 @@ func simpleWebMonitorReport(async api.WriteAPI, monitorResult SimpleWebMonitorRe
 }
 
 // end simpleWebMonitor
+// begin simpleSSLMonitor
+
+func simpleSSLMonitor(async api.WriteAPI, monitor Monitor, localConfig LocalConfig) {
+	tick := time.Tick(monitor.IntervalInMilliseconds * time.Millisecond)
+	for range tick {
+		go simpleSSLMonitorCheck(async, monitor, localConfig)
+	}
+}
+
+func simpleSSLMonitorCheck(async api.WriteAPI, monitor Monitor, localConfig LocalConfig) {
+	var simpleSSLMonitorResult SimpleSSLMonitorReport
+	simpleSSLMonitorResult.StartTime = time.Now()
+	simpleSSLMonitorResult.Name = monitor.DisplayNameTarget
+	simpleSSLMonitorResult.Source = localConfig.DisplayNameSource
+	simpleSSLMonitorResult.CommonName = "notObtained"
+	simpleSSLMonitorResult.TimeToExpire = 0
+	simpleSSLMonitorResult.TimeSinceValid = 0
+	simpleSSLMonitorResult.IsOnline = 0
+
+	conn, err := tls.Dial(monitor.ProtocolName, monitor.Destination+":"+strconv.Itoa(monitor.Port), nil)
+	if err != nil {
+		log.Println("Error reading request. ", err)
+	} else {
+		defer conn.Close()
+		simpleSSLMonitorResult.IsOnline = 1
+		for _, chain := range conn.ConnectionState().VerifiedChains {
+			for certNum, cert := range chain {
+				// only check first certificate in chain
+				if certNum == 0 {
+					simpleSSLMonitorResult.CommonName = cert.Subject.CommonName
+					simpleSSLMonitorResult.TimeToExpire = int64(cert.NotAfter.Sub(simpleSSLMonitorResult.StartTime).Milliseconds())
+					simpleSSLMonitorResult.TimeSinceValid = int64(simpleSSLMonitorResult.StartTime.Sub(cert.NotBefore).Milliseconds())
+				}
+			}
+		}
+	}
+	simpleSSLMonitorResult.EndTime = time.Now()
+	// do reporting
+	simpleSSLMonitorReport(async, simpleSSLMonitorResult)
+}
+
+func simpleSSLMonitorReport(async api.WriteAPI, monitorResult SimpleSSLMonitorReport) {
+	p := influxdb2.NewPointWithMeasurement(ALLOWED_TYPE_simpleSSLMonitor).
+		AddTag("name", monitorResult.Name).
+		AddTag("source", monitorResult.Source).
+		AddField("commonName", monitorResult.CommonName).
+		AddField("isOnline", monitorResult.IsOnline).
+		AddField("timeToExpire", monitorResult.TimeToExpire).
+		AddField("timeSinceValid", monitorResult.TimeSinceValid).
+		SetTime(monitorResult.StartTime)
+	async.WritePoint(p)
+}
+
+// end simpleSSLMonitor

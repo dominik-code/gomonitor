@@ -46,6 +46,14 @@ Note: indentation is not relevant, but keys/values are case-sensitive (must be a
       "port": 80 //port number of the service you want to check against
     }
     ```
+  ###### output example
+    ```
+      measurement: simplePortMonitor
+      tags: name, source (both from config file)
+      fields:
+        - isOnline (either 0 or 1) 1 == online, 0 == offline
+        - responseTime (in milliseconds) e.g. 523 means 0,523 seconds
+    ```
 
 * #### simpleWebMonitor:
   ###### used for monitoring a specific web page
@@ -60,10 +68,41 @@ Note: indentation is not relevant, but keys/values are case-sensitive (must be a
       "port": 443 //port number of the service you want to check against http -> 80, https -> 443
     }
     ```
+  ###### output example
+    ```
+      measurement: simpleWebMonitor
+      tags: name, source (both from config file)
+      fields:
+        - isOnline (either 0 or 1) 1 == online, 0 == offline
+        - responseTime (in milliseconds) e.g. 523 means 0,523 seconds
+        - statusCode e.g. 200 means HTTP OK, basic http response code we got
+    ```
+* #### simpleSSLMonitor:
+  ###### used for monitoring a specific ssl certificate
+    ```
+    {
+      "displayNameTarget": "target-ssl-host-1",
+      "intervalInMilliseconds": 3600000, // interval in milliseconds for independed check calls
+      "type": "simpleSSLMonitor",
+      "protocolName": "tcp", // should always be "tcp"
+      "destination": "127.0.0.1", // either an IPv4 "1.2.3.4" or IPv6 "[abcd:efab::1]" or Hostname: "www.example.com"
+      "port": 443 // port number of the ssl service mostly https -> 443
+    }
+    ```
+  ###### output example
+    ```
+      measurement: simpleSSLMonitor
+      tags: name, source (both from config file)
+      fields:
+        - isOnline (either 0 or 1) 1 == online, 0 == offline (note: will be marked offline when certificate check fails)
+        - commonName of first certificate in chain
+        - timeSinceValid (in milliseconds) time since notBefore in cerificate was passed (can be 0 == invalid)
+        - timeToExpire (in milliseconds) time till notAfter in certificate will be met (can be 0 == invalid) 
+        
+    ```
 * #### other ideas (currently not implemented):
   * Ping
   * MTR (check if route changed from defined AS-Numbers)
-  * SSL Certificate duration till expire
   * DNS check
     * check specific record (A, AAAA, MX, etc.)
     * check nameservers from zone

@@ -47,6 +47,15 @@
       "protocolName": "https",
       "destination": "127.0.0.1",
       "port": 443
+    },
+    {
+      "displayNameTarget": "target-ssl-check-1",
+      "intervalInMilliseconds": 86400000,
+      "timeoutInMilliseconds": 60000,
+      "type": "simpleSSLMonitor",
+      "protocolName": "tcp",
+      "destination": "127.0.0.1",
+      "port": 443
     }
   ]
 }
