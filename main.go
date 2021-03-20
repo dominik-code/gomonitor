@@ -155,7 +155,8 @@ func simplePortMonitorCheck(async api.WriteAPI, monitor Monitor, localConfig Loc
 	simplePortMonitorResult.Source = localConfig.DisplayNameSource
 	simplePortMonitorResult.IsOnline = 0
 
-	conn, err := net.Dial(monitor.ProtocolName, monitor.Destination+":"+strconv.Itoa(monitor.Port))
+	d := net.Dialer{Timeout: monitor.TimeoutInMilliseconds * time.Millisecond}
+	conn, err := d.Dial(monitor.ProtocolName, monitor.Destination+":"+strconv.Itoa(monitor.Port))
 	if err == nil {
 		simplePortMonitorResult.IsOnline = 1
 		conn.Close()
